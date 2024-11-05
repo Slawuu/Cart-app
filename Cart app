@@ -1,0 +1,239 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace OrderApp
+{
+    // Klasa reprezentująca produkt
+    public class Product
+    {
+        public string Name { get; }
+        public decimal Price { get; }
+
+        public Product(string name, decimal price)
+        {
+            Name = name;
+            Price = price;
+        }
+    }
+
+    // Klasa reprezentująca pozycję zamówienia
+    public class OrderItem
+    {
+        public Product Product { get; }
+        public int Quantity { get; set; }
+
+        public OrderItem(Product product, int quantity)
+        {
+            Product = product;
+            Quantity = quantity;
+        }
+
+        public decimal TotalPrice => Product.Price * Quantity;
+    }
+
+    // Klasa reprezentująca zamówienie
+    public class Order
+    {
+        private readonly List<OrderItem> _items = new List<OrderItem>();
+
+        public void AddProduct(Product product, int quantity)
+        {
+            var orderItem = _items.FirstOrDefault(i => i.Product.Name == product.Name);
+            if (orderItem != null)
+            {
+                orderItem.Quantity += quantity;
+            }
+            else
+            {
+                _items.Add(new OrderItem(product, quantity));
+            }
+        }
+
+        public void RemoveProduct(string productName)
+        {
+            var orderItem = _items.FirstOrDefault(i => i.Product.Name == productName);
+            if (orderItem != null)
+            {
+                if (orderItem.Quantity > 1)
+                {
+                    orderItem.Quantity--;
+                }
+                else
+                {
+                    _items.Remove(orderItem);
+                }
+                Console.WriteLine($"Usunięto {productName} z zamówienia.");
+            }
+            else
+            {
+                Console.WriteLine("Produkt nie został znaleziony w zamówieniu.");
+            }
+        }
+
+        public decimal GetTotalOrderValue(out List<string> discountDetails)
+        {
+            // Obliczamy całkowitą początkową wartość zamówienia
+            decimal initialTotal = _items.Sum(i => i.TotalPrice);
+            decimal total = initialTotal;
+            decimal discountAmount = 0;
+            discountDetails = new List<string>(); // Lista do przechowywania szczegółów zniżek
+            bool anyDiscountApplied = false; // Zmienna do sprawdzenia, czy zastosowano zniżki
+
+            // Tworzymy listę cen poszczególnych produktów, uwzględniając ich ilości
+            List<decimal> individualPrices = new List<decimal>();
+            foreach (var item in _items)
+            {
+                for (int i = 0; i < item.Quantity; i++)
+                {
+                    individualPrices.Add(item.Product.Price);
+                }
+            }
+
+            // Sortujemy listę cen rosnąco
+            individualPrices = individualPrices.OrderBy(price => price).ToList();
+
+            // Zniżka 10% na drugi najtańszy lub 20% na trzeci najtańszy (stosowana raz w zależności od liczby produktów)
+            if (individualPrices.Count >= 3)
+            {
+                // 20% zniżki na trzeci najtańszy produkt
+                discountAmount = individualPrices[2] * 0.2m;
+                total -= discountAmount;
+                anyDiscountApplied = true;
+                discountDetails.Add($"Zastosowano 20% zniżki na trzeci najtańszy produkt (cena: {individualPrices[2]} PLN): -{discountAmount:F2} PLN");
+            }
+            else if (individualPrices.Count == 2)
+            {
+                // 10% zniżki na drugi najtańszy produkt
+                discountAmount = individualPrices[1] * 0.1m;
+                total -= discountAmount;
+                anyDiscountApplied = true;
+                discountDetails.Add($"Zastosowano 10% zniżki na drugi najtańszy produkt (cena: {individualPrices[1]} PLN): -{discountAmount:F2} PLN");
+            }
+
+            // Dodanie 5% zniżki na całkowitą wartość zamówienia powyżej 5000 PLN
+            if (total > 5000)
+            {
+                discountAmount = total * 0.05m;
+                total *= 0.95m;
+                anyDiscountApplied = true;
+                discountDetails.Add($"Zastosowano 5% zniżki na zamówienie powyżej 5000 PLN: -{discountAmount:F2} PLN");
+            }
+
+            // Dodanie zniżki na zestawy (Laptop + Mysz)
+            if (_items.Any(i => i.Product.Name == "Laptop") && _items.Any(i => i.Product.Name == "Mysz"))
+            {
+                discountAmount = (2500 + 90) * 0.15m; // 15% zniżki
+                total -= discountAmount;
+                anyDiscountApplied = true;
+                discountDetails.Add($"Zastosowano 15% zniżki na zestaw Laptop + Mysz: -{discountAmount:F2} PLN");
+            }
+
+            // Wyświetl nagłówek tylko jeśli zastosowano jakiekolwiek zniżki
+            if (anyDiscountApplied)
+            {
+                Console.WriteLine("\n--- Szczegóły zastosowanych zniżek ---");
+                foreach (var detail in discountDetails)
+                {
+                    Console.WriteLine(detail);
+                }
+            }
+
+            // Zwracamy całkowitą wartość po zniżkach
+            return total;
+        }
+
+        public void PrintOrder()
+        {
+            Console.WriteLine("Zamówienie:");
+            foreach (var item in _items)
+            {
+                Console.WriteLine($"{item.Product.Name} x{item.Quantity} - {item.TotalPrice:F2} PLN");
+            }
+            Console.WriteLine($"Łączna wartość zamówienia: {GetTotalOrderValue(out List<string> discountDetails):F2} PLN");
+        }
+    }
+
+    // Główna klasa aplikacji konsolowej
+    class Program
+    {
+        // Zmienna statyczna przechowująca dostępne produkty
+        static Dictionary<int, Product> products = new Dictionary<int, Product>
+        {
+            {1, new Product("Laptop", 2500)},
+            {2, new Product("Klawiatura", 120)},
+            {3, new Product("Mysz", 90)},
+            {4, new Product("Monitor", 1000)},
+            {5, new Product("Kaczka debuggująca", 66)}
+        };
+
+        static void Main(string[] args)
+        {
+            Console.WriteLine("Witaj w aplikacji zamówień!");
+            Console.WriteLine("Dziś zniżka dnia: 15% na zestaw Laptop + Mysz!\n");
+
+            var order = new Order();
+
+            while (true)
+            {
+                Console.WriteLine("\nWybierz opcję:");
+                Console.WriteLine("1. Dodaj produkt");
+                Console.WriteLine("2. Usuń produkt");
+                Console.WriteLine("3. Wyświetl wartość zamówienia");
+                Console.WriteLine("4. Wyjście");
+                
+                if (!int.TryParse(Console.ReadLine(), out int choice))
+                {
+                    Console.WriteLine("Niepoprawna opcja. Spróbuj ponownie.");
+                    continue;
+                }
+
+                switch (choice)
+                {
+                    case 1:
+                        Console.WriteLine("Dostępne produkty:");
+                        foreach (var p in products)
+                        {
+                            Console.WriteLine($"{p.Key}. {p.Value.Name} - {p.Value.Price} PLN");
+                        }
+
+                        Console.Write("Wybierz numer produktu: ");
+                        if (!int.TryParse(Console.ReadLine(), out int productId) || !products.ContainsKey(productId))
+                        {
+                            Console.WriteLine("Niepoprawny wybór produktu.");
+                            break;
+                        }
+
+                        Console.Write("Podaj ilość: ");
+                        if (!int.TryParse(Console.ReadLine(), out int quantity) || quantity <= 0)
+                        {
+                            Console.WriteLine("Niepoprawna ilość.");
+                            break;
+                        }
+
+                        order.AddProduct(products[productId], quantity);
+                        Console.WriteLine($"Dodano {products[productId].Name} x{quantity}.");
+                        break;
+
+                    case 2:
+                        Console.Write("Podaj nazwę produktu do usunięcia: ");
+                        string productName = Console.ReadLine();
+                        order.RemoveProduct(productName);
+                        break;
+
+                    case 3:
+                        order.PrintOrder();
+                        break;
+
+                    case 4:
+                        Console.WriteLine("Zamknięcie aplikacji.");
+                        return;
+
+                    default:
+                        Console.WriteLine("Niepoprawna opcja. Spróbuj ponownie.");
+                        break;
+                }
+            }
+        }
+    }
+}
