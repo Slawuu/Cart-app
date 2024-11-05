@@ -33,6 +33,13 @@ OrderApp to aplikacja konsolowa, która pozwala tworzyć i zarządzać zamówien
 	1.Usuń produkt, podając jego nazwę.
 	2.Wyświetl aktualną wartość zamówienia oraz szczegóły zastosowanych rabatów.
 
+ **Przykładowe zniżki i rabaty**
+ 
+	a) 10% zniżki na drugi najtańszy produkt (jeśli w zamówieniu są przynajmniej 2 różne produkty).
+	b) 20% zniżki na trzeci najtańszy produkt (jeśli w zamówieniu są przynajmniej 3 różne produkty).
+	c) 5% zniżki na zamówienie powyżej 5000 PLN.
+	d) 15% zniżki na zestaw Laptop + Mysz.
+
  **Wymagania**
 	
  	.NET SDK 5.0 lub nowszy
